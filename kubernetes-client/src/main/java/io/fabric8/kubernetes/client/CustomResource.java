@@ -15,13 +15,7 @@
  */
 package io.fabric8.kubernetes.client;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import static io.fabric8.kubernetes.client.utils.Utils.isNullOrEmpty;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -37,10 +31,15 @@ import io.fabric8.kubernetes.model.annotation.Plural;
 import io.fabric8.kubernetes.model.annotation.Singular;
 import io.fabric8.kubernetes.model.annotation.Version;
 import io.sundr.builder.annotations.Buildable;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static io.fabric8.kubernetes.client.utils.Utils.isNullOrEmpty;
 
 /**
  * A base class for implementing a custom resource kind. Implementations must be annotated with
@@ -91,6 +90,8 @@ public abstract class CustomResource<S, T> implements HasMetadata {
   private final String apiVersion;
   private final String scope;
   private final String plural;
+  private final boolean served;
+  private final boolean storage;
 
   public CustomResource() {
     final String version = HasMetadata.super.getApiVersion();
@@ -105,10 +106,22 @@ public abstract class CustomResource<S, T> implements HasMetadata {
     this.singular = getSingular(clazz);
     this.plural = getPlural(clazz);
     this.crdName = getCRDName(clazz);
+    this.served = getServed(clazz);
+    this.storage = getStorage(clazz);
     this.spec = initSpec();
     this.status = initStatus();
   }
-  
+
+  public static boolean getServed(Class<? extends CustomResource> clazz) {
+    final Version annotation = clazz.getAnnotation(Version.class);
+    return annotation == null || annotation.served();
+  }
+
+  public static boolean getStorage(Class<? extends CustomResource> clazz) {
+    final Version annotation = clazz.getAnnotation(Version.class);
+    return annotation == null || annotation.storage();
+  }
+
   /**
    * Override to provide your own Spec instance
    * @return a new Spec instance
@@ -236,6 +249,16 @@ public abstract class CustomResource<S, T> implements HasMetadata {
   @JsonIgnore
   public String getVersion() {
     return HasMetadata.getVersion(getClass());
+  }
+
+  @JsonIgnore
+  public boolean isServed() {
+    return served;
+  }
+
+  @JsonIgnore
+  public boolean isStorage() {
+    return storage;
   }
 
   public S getSpec() {
